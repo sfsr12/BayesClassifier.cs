@@ -20,6 +20,6 @@ using namespace System::Security::Permissions;
 [assembly:AssemblyCopyrightAttribute( L"Copyright (c) Tony J. Hudgins 2015" )];
 [assembly:AssemblyTrademarkAttribute( L"" )];
 [assembly:AssemblyCultureAttribute( L"" )];
-[assembly:AssemblyVersionAttribute( "1.0.1.1" )];
+[assembly:AssemblyVersionAttribute( "1.0.2.3" )];
 [assembly:ComVisible( false )];
 [assembly:CLSCompliantAttribute( true )];
