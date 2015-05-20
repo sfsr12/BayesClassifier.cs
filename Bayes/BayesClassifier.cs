@@ -10,6 +10,9 @@ using System.Text.RegularExpressions;
 
 // This class is largely a port of https://github.com/jekyll/classifier-reborn/blob/master/lib/classifier-reborn/bayes.rb
 
+/// <summary>
+/// A naive Bayesian classifier for classifying textual data.
+/// </summary>
 [Serializable]
 public sealed class BayesClassifier : ISerializable
 {
@@ -35,12 +38,22 @@ public sealed class BayesClassifier : ISerializable
         } );
     }
 
+    /// <summary>
+    /// Deserializes training data from a file and returns a new pre-trained instance of the classifier.
+    /// </summary>
+    /// <param name="filePath">The file containing the training data to deserialize.</param>
+    /// <returns>A pre-trained instance of <see cref="BayesClassifier"/>, or null if the file does not contain valid training data.</returns>
     public static BayesClassifier FromTrainingData( string filePath )
     {
         using( var fileStream = File.Open( filePath, FileMode.Open, FileAccess.Read, FileShare.Read ) )
             return BayesClassifier.FromTrainingData( fileStream );
     }
 
+    /// <summary>
+    /// Deserializes training data from a stream and returns a new pre-trained instance of the classifier.
+    /// </summary>
+    /// <param name="inputStream">The stream containing the training data to deserialize.</param>
+    /// <returns>A pre-trained instance of <see cref="BayesClassifier"/>, or null if the file does not contain valid training data.</returns>
     public static BayesClassifier FromTrainingData( Stream inputStream )
     {
         var formatter = new BinaryFormatter();
@@ -52,11 +65,20 @@ public sealed class BayesClassifier : ISerializable
     private readonly Dictionary<string, uint> CategoryCounts;
     private uint TotalWords;
 
+    /// <summary>
+    /// Gets the category names as a read-only collection.
+    /// </summary>
     public ReadOnlyCollection<string> Categories
     {
         get { return this.TrainingData.Keys.ToList().AsReadOnly(); }
     }
 
+    /// <summary>
+    /// Initializes a new instance of BayesClassifier with the specified category names.
+    /// </summary>
+    /// <exception cref="System.ArgumentNullException">Thrown if <paramref name="categoryNames"/> is null.</exception>
+    /// <exception cref="System.ArgumentException">Thrown if <paramref name="categoryNames"/> does not contain any elements.</exception>
+    /// <param name="categoryNames">The categories to use when training the classifier.</param>
     public BayesClassifier( params string[] categoryNames )
     {
         if( categoryNames == null )
@@ -78,6 +100,9 @@ public sealed class BayesClassifier : ISerializable
         }
     }
 
+    /// <summary>
+    /// Public constructor for deserializing instances of <see cref="BayesClassifier"/>. Should not be invoked directly.
+    /// </summary>
     public BayesClassifier( SerializationInfo serializationInfo, StreamingContext streamingContext )
     {
         this.TrainingData = serializationInfo.GetValue( "TrainingData", typeof( Dictionary<string, Dictionary<string, uint>> ) ) as Dictionary<string, Dictionary<string, uint>>;
@@ -86,6 +111,11 @@ public sealed class BayesClassifier : ISerializable
         this.TotalWords = serializationInfo.GetUInt32( "TotalWords" );
     }
 
+    /// <summary>
+    /// Public method for serializing instances of <see cref="BayesClassifier"/>. Should not be invoked directly.
+    /// </summary>
+    /// <param name="serializationInfo"></param>
+    /// <param name="streamingContext"></param>
     public void GetObjectData( SerializationInfo serializationInfo, StreamingContext streamingContext )
     {
         serializationInfo.AddValue( "TrainingData", this.TrainingData );
@@ -94,16 +124,37 @@ public sealed class BayesClassifier : ISerializable
         serializationInfo.AddValue( "TotalWords", this.TotalWords );
     }
 
+    /// <summary>
+    /// Loads a text file and trains the specified category with its contents.
+    /// </summary>
+    /// <exception cref="System.ArgumentNullException">Thrown when <paramref name="categoryName"/> or <paramref name="filePath"/> is null.</exception>
+    /// <exception cref="System.Collections.Generic.KeyNotFoundException">Thrown if <paramref name="categoyName"/> does not exist in the classifier's training data.</exception>
+    /// <param name="categoryName">The category to train.</param>
+    /// <param name="filePath">The file containing the text that will be trained.</param>
     public void TrainFile( string categoryName, string filePath )
     {
         this.Train( categoryName, new StreamReader( filePath, Encoding.UTF8 ) );
     }
 
+    /// <summary>
+    /// Reads all text from <paramref name="textReader"/> and trains the specified category with its contents.
+    /// </summary>
+    /// <exception cref="System.ArgumentNullException">Thrown when <paramref name="categoryName"/> or <paramref name="text"/> is null.</exception>
+    /// <exception cref="System.Collections.Generic.KeyNotFoundException">Thrown if <paramref name="categoyName"/> does not exist in the classifier's training data.</exception>
+    /// <param name="categoryName">The category to train.</param>
+    /// <param name="textReader">The <see cref="System.IO.TextReader"/> containing the text that will be trained.</param>
     public void Train( string categoryName, TextReader textReader )
     {
         this.Train( categoryName, textReader.ReadToEnd() );
     }
 
+    /// <summary>
+    /// Trains the specified category with the contents of <paramref name="text"/>.
+    /// </summary>
+    /// <exception cref="System.ArgumentNullException">Thrown when <paramref name="categoryName"/> or <paramref name="text"/> is null.</exception>
+    /// <exception cref="System.Collections.Generic.KeyNotFoundException">Thrown if <paramref name="categoyName"/> does not exist in the classifier's training data.</exception>
+    /// <param name="categoryName">The category to train.</param>
+    /// <param name="text">The text that will be trained.</param>
     public void Train( string categoryName, string text )
     {
         if( categoryName == null )
@@ -134,16 +185,43 @@ public sealed class BayesClassifier : ISerializable
         }
     }
 
+    /// <summary>
+    /// Loads a text file and un-trains the specified category with its contents.
+    /// </summary>
+    /// <exception cref="System.ArgumentNullException">Thrown when <paramref name="categoryName"/> or <paramref name="filePath"/> is null.</exception>
+    /// <exception cref="System.Collections.Generic.KeyNotFoundException">Thrown if <paramref name="categoyName"/> does not exist in the classifier's training data.</exception>
+    /// <param name="categoryName">The category to un-train.</param>
+    /// <param name="filePath">The file containing the text that will be un-trained.</param>
     public void UntrainFile( string categoryName, string filePath )
     {
+        if( filePath == null )
+            throw new ArgumentNullException( "filePath" );
+
         this.Untrain( categoryName, new StreamReader( filePath, Encoding.UTF8 ) );
     }
 
+    /// <summary>
+    /// Reads all text from <paramref name="textReader"/> and un-trains the specified category with its contents.
+    /// </summary>
+    /// <exception cref="System.ArgumentNullException">Thrown when <paramref name="categoryName"/> or <paramref name="textReader"/> is null.</exception>
+    /// <exception cref="System.Collections.Generic.KeyNotFoundException">Thrown if <paramref name="categoyName"/> does not exist in the classifier's training data.</exception>
+    /// <param name="categoryName">The category to un-train.</param>
+    /// <param name="filePath">The file containing the text that will be un-trained.</param>
     public void Untrain( string categoryName, TextReader textReader )
     {
+        if( textReader == null )
+            throw new ArgumentNullException( "textReader" );
+
         this.Untrain( categoryName, textReader.ReadToEnd() );
     }
 
+    /// <summary>
+    /// Un-trains the specified category with the contents of <paramref name="text"/>.
+    /// </summary>
+    /// <exception cref="System.ArgumentNullException">Thrown when <paramref name="categoryName"/> or <paramref name="text"/> is null.</exception>
+    /// <exception cref="System.Collections.Generic.KeyNotFoundException">Thrown if <paramref name="categoyName"/> does not exist in the classifier's training data.</exception>
+    /// <param name="categoryName">The category to un-train.</param>
+    /// <param name="filePath">The file containing the text that will be un-trained.</param>
     public void Untrain( string categoryName, string text )
     {
         if( categoryName == null )
@@ -189,18 +267,45 @@ public sealed class BayesClassifier : ISerializable
         }
     }
 
+    /// <summary>
+    /// Loads a file into memory and attempts to classify its contents.
+    /// </summary>
+    /// <exception cref="System.ArgumentNullException">Thrown when <paramref name="filePath"/> is null.</exception>
+    /// <param name="filePath">The file containing the text to be classified.</param>
+    /// <returns>A <see cref="System.Collections.Generic.Dictionary"/> containing the classification probabilities for each category.</returns>
     public Dictionary<string, double> ClassificationsFromFile( string filePath )
     {
+        if( filePath == null )
+            throw new ArgumentNullException( "filePath" );
+
         return this.Classifications( new StreamReader( filePath, Encoding.UTF8 ) );
     }
 
+    /// <summary>
+    /// Reads all text from <paramref name="textReader"/> and attempts to classify its contents.
+    /// </summary>
+    /// <exception cref="System.ArgumentNullException">Thrown when <paramref name="textReader"/> is null.</exception>
+    /// <param name="textReader">The <see cref="System.IO.TextReader"/> containing the text to be classified.</param>
+    /// <returns>A <see cref="System.Collections.Generic.Dictionary"/> containing the classification probabilities for each category.</returns>
     public Dictionary<string, double> Classifications( TextReader textReader )
     {
+        if( textReader == null )
+            throw new ArgumentNullException( "textReader" );
+
         return this.Classifications( textReader.ReadToEnd() );
     }
 
+    /// <summary>
+    /// Attempts to classify <paramref name="text"/>.
+    /// </summary>
+    /// <exception cref="System.ArgumentNullException">Thrown when <paramref name="text"/> text is null.</exception>
+    /// <param name="text">The text to be classified.</param>
+    /// <returns>A <see cref="System.Collections.Generic.Dictionary"/> containing the classification probabilities for each category.</returns>
     public Dictionary<string, double> Classifications( string text )
     {
+        if( text == null )
+            throw new ArgumentNullException( "text" );
+
         var scores = new Dictionary<string, double>();
         var hash = this.StemAndHash( text );
         var count = this.CategoryCounts.Values.Sum( x => (double)x );
@@ -224,16 +329,34 @@ public sealed class BayesClassifier : ISerializable
         return scores;
     }
 
+    /// <summary>
+    /// Loads a file into memory and attempts to classify its contents.
+    /// </summary>
+    /// <exception cref="System.ArgumentNullException">Thrown when <paramref name="filePath"/> is null.</exception>
+    /// <param name="filePath">The file containing the text to be classified.</param>
+    /// <returns>The most probably classification for the text.</returns>
     public string ClassifyFile( string filePath )
     {
         return this.Classify( new StreamReader( filePath, Encoding.UTF8 ) );
     }
 
+    /// <summary>
+    /// Reads all text from <paramref name="textReader"/> and attempts to classify its contents.
+    /// </summary>
+    /// <exception cref="System.ArgumentNullException">Thrown when <paramref name="textReader"/> is null.</exception>
+    /// <param name="textReader">The <see cref="System.IO.TextReader"/> containing the text to be classified.</param>
+    /// <returns>The most probably classification for the text.</returns>
     public string Classify( TextReader textReader )
     {
         return this.Classify( textReader.ReadToEnd() );
     }
 
+    /// <summary>
+    /// Attempts to classify <paramref name="text"/>.
+    /// </summary>
+    /// <exception cref="System.ArgumentNullException">Thrown when <paramref name="text"/> text is null.</exception>
+    /// <param name="text">The text to be classified.</param>
+    /// <returns>The most probably classification for the text.</returns>
     public string Classify( string text )
     {
         return this.Classifications( text )
@@ -242,6 +365,13 @@ public sealed class BayesClassifier : ISerializable
                    .Key;
     }
 
+    /// <summary>
+    /// Adds a new category to the classifier's training data. This method should be used with care, as it will add new, un-trained category
+    /// that will match more text than the more strictly trained, pre-existing categories possible resulting in innacurate classifications.
+    /// </summary>
+    /// <exception cref="System.ArgumentNullException">Thrown if <paramref name="categoryName"/> is null.</exception>
+    /// <exception cref="System.InvalidOperationException">Thrown if <paramref name="categoryName"/> already exists in the classifier's training data.</exception>
+    /// <param name="categoryName">The new category name to add.</param>
     public void AddCategory( string categoryName )
     {
         if( categoryName == null )
@@ -255,8 +385,16 @@ public sealed class BayesClassifier : ISerializable
         this.TrainingData.Add( categoryName, new Dictionary<string, uint>() );
     }
 
+    /// <summary>
+    /// Serializes the current classifier's training data to a file, allowing it to be re-used later.
+    /// </summary>
+    /// <exception cref="System.ArgumentNullException">Thrown when <paramref name="filePath"/> is null.</exception>
+    /// <param name="filePath">The file that the training data will be written to.</param>
     public void SaveTrainingData( string filePath )
     {
+        if( filePath == null )
+            throw new ArgumentNullException( "filePath" );
+
         using( var fileStream = File.Open( filePath, FileMode.OpenOrCreate, FileAccess.Write, FileShare.None ) )
         {
             this.SaveTrainingData( fileStream );
@@ -264,6 +402,11 @@ public sealed class BayesClassifier : ISerializable
         }
     }
 
+    /// <summary>
+    /// Serializes the current classifier's training data to a stream, allowing it to be re-used later.
+    /// </summary>
+    /// <exception cref="System.ArgumentNullException">Thrown when <paramref name="outputStream"/> is null.</exception>
+    /// <param name="outputStream">The stream that the training data will be written to.</param>
     public void SaveTrainingData( Stream outputStream )
     {
         var formatter = new BinaryFormatter();
